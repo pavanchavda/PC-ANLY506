@@ -1,0 +1,165 @@
+---
+title: "ANLY 506 - Final Report"
+author: "Pavan Chavda"
+date: "April 14, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse); library(reshape2); library(cluster); library(gridExtra); library(knitr); library(treemap); library(kableExtra); library(plotly); library(scales)
+
+data <- read.csv("C:/Users/Pavan/Documents/GitHub/PC-ANLY506/Data/gapminder.csv")
+```
+Github: https://github.com/pavanchavda/PC-ANLY506/tree/master/Code
+
+###Introduction
+The purpose of this research project is to analyze the relationship between income, life expectancy, and population variables for countries around the world using the gapminder dataset. I will use the techniques and knowledge gained about the exploratory data analysis through ANLY 506 course to explore the data, clean it, and create interesting visulizations that would help answer the research questions that I have posed below. For visulizations, I will use the combination of boxplot, interactive scatterplot, tree maps, etc. to explore the data visually.
+
+###Research Questions
+
+The focus of this research project will be on these questions:
+
+* What does the exploratory data analysis reveal about the quality of the dataset?
+* Is there any correlation between the varialbles life exectancy, income and population?
+* What are the countries/regions with very low and high income/life expectancy?
+
+
+###Data Source
+The data used in this study was compiled by Gapminder Foundation. Gapminder Foundation is a non-profit organization that promotes sustainable global development and achievement of the United Nations Millennium Development Goals by increased use and understanding of statistics and other information about social, economic and environmental development at local, national and global levels.[Gapminder Wikipedia]. Our dataset contains a total of 41,824 records and has 6 different variables: country, year, life, population, income(aka GDP per Capita), and region. The dataset contains data starting year 1800 to  2015. 
+
+
+###Exploratory Data Analysis
+Before we dive into the results and start creating visualizations, let's first explore the data so we can familiarize ourself with the structure of the data and so we can ensure that the data we are using is accurate and of good quality. If the data is inaccurate, so will be the results.
+
+####1. Run str()
+We will run the str()function on our data to review its structure. The str() function reveals that population variable is saved as factor and year variable is saved as integer data type. Let's convert the population datatype to numeric so and year variable to factor. I also noticed that some variable starts with lower letter and some variable names start with upper letter. For consistency, I also updated the variable name to start with upper letter. 
+```{r,echo = TRUE,warning=TRUE}
+str(data)
+#Change the datatype for population and Year column
+data$population <- as.numeric(as.character(data$population))
+data$Year <- as.factor(data$Year)
+
+#Update column names for variables
+colnames(data)<- c("Country", "Year", "LifeExpectancy", "Population", "Income", "Region")
+```
+
+####2. Looking at the top and the bottom of your data
+The top and bottom of the data reveals no immeadiate concern about the quality of the data.
+```{r,echo = TRUE,warning=FALSE}
+#Check top few rows of the data
+head(data)
+#Check botton few rows of the data
+tail(data)
+```
+####3. Check the packaging
+Number of rows and column matches what I had expected.
+```{r,echo = TRUE,warning=FALSE}
+#Check number of rows in our data
+nrow(data)
+#Check number of columns in our data
+ncol(data)
+```
+####4. Check the "n"s
+There are 197 unique countries in our dataset. Currently there are 195 countries in the world, but our dataset contains data from year 1800 so there might be data for countries that do not exist now. The countries are divided into 6 regions: America, East Asia & Pacific, Europe & Central Asia, Middle East & North Africa, South Asia, Sub-Saharan Africa.
+```{r,echo = TRUE,warning=FALSE}
+#Counting the number of distinct countries in our data using length and unique
+length(unique(data$Country))
+
+#Checking the frequency of regions in the data
+table(data$Region)
+```
+
+Summary of the data shows that population variable contains about 25,817 NA's and income variable contains 2,341 NA's. A quick glimpse at the data shows The NA's in population variable are due to the fact that the data is only available every 10 years until 1950. For NA's in income variable, lets examine further to see which countries we are missing the data for.
+```{r,echo = TRUE,warning=FALSE}
+#Summarize the data to obtain descriptive statistics
+summary(data)
+```
+
+The table below shows the number of years we are missing the data for income varialble by country. Out of those 15 countries that have, only Croatia is a major country with somewhat significant population. Rest of the countries are very small in terms of overall population and will not skew our analysis.
+```{r,echo = TRUE,warning=FALSE}
+#Create table that shows the number of years we are missing the income data for 
+kable(data %>%
+    group_by(Country) %>%
+    summarise_all(funs(sum(is.na(.)))) %>%
+    filter(Income>0),format = "html",padding = 2,table.attr = "id=\"mytable\"")
+```
+
+
+###Data Visualization
+So far We have cleaned up the data and use exploratory data analysis techniques to familiarize ourself with the data. Now the fun part begins. We can go ahead and start exploring the data visually.
+
+While there is a vast amount of data available to analyze, for the purpose of this study, I will only be analysing the data for the most recent year available: year 2015. So lets go ahead and create a new data set with only 2015 data first.
+```{r,echo = TRUE,warning=FALSE}
+#Filter data for year 2015 and assigning it to a new varialble called data2015
+data2015 <- data %>%
+  filter(Year==2015)
+```
+
+####Income per Region in 2015
+Figure 1 below shows that Europe & Central Asia has the highest income of around $25,000. On the other hand, South Asia and Sub-Saharan regions have the lowest GDP per capita. We can also see that the inter quartile range (IGR) for Middle East & North Africa is much larger than other regions. This is likely because of the large difference in GDP per capita for middle east and north african countries.
+```{r,echo = TRUE,warning=FALSE}
+#Plot boxplot 
+ggplot(data2015,aes(Region,Income,fill=Region))+geom_boxplot()+
+  labs(title = "Figure 1: GDP per Capita by Region in 2015",x="Region",y="Income(GDP per Capita)")+
+  scale_y_continuous(labels = scales::comma, breaks=seq(0,150000,25000))+
+  theme(panel.background = element_blank(), panel.grid = element_blank(),legend.position = "none",axis.text.x=element_text(angle = 10,vjust = 0),axis.title.x = element_blank())
+```
+
+
+####Correlation between Income and Population by Country and Region in 2015
+Figure 2 shows a treemap of income and population by country and region. The size of the rectangle represents the population of the country while the color of the country represents the income. Figure 2 shows that income in Europe & Central Asia and America is much higher compared to other regions while Sub-Saharan Africa region has the least income. We can also see that approximately 25 countries in East Asia & Pacific and South Asia region represent about 50% of the global population. Majority of the population is represented by India and China in those regions. Figure 2 also shows that countries with lower population usually has higher GDP per capita. This is not very surprising considering the GDP per capita takes the population of the country into account. 
+```{r,echo = TRUE,warning=FALSE}
+#Plot treemap
+treemap(data2015,
+        index=c("Region", "Country"),
+        vSize="Population",
+        vColor="Income",
+        type="value",
+        format.legend = list(scientific = FALSE, big.mark = " "),
+        title = "Figure 2: Treemap of Population and Income by Country and Region",
+        overlap.labels = 0.5,
+        border.col = "black",
+        palette="RdBu")
+```
+
+
+####Correlaltion between Life Expectancy and Income by Country and Region in 2015
+Figure 3 below shows an interactive scatter plot of life expectancy and income by country and Region. Figure 3 also indicates that until life expectancy of 70 years, the income doesnt seem to affect it. However, after 70 years, the countries with higher GDP have much higher life expectancy. This proves that people living in countries with higher income will have higher chance of living above the age of 70 years. The graph also shows that countries in Sub-Saharan region have the least life expectancy and are all scattered around each other. On the other hand, countries in Europe & Central Asia and America regions have the highest life expectancy.
+
+```{r,echo = TRUE,warning=FALSE}
+#Plot scatterplot
+g1 <- ggplot(data2015,aes(LifeExpectancy,Income,group=Country,col=Region))+
+  geom_point()+
+  theme_classic()+
+  labs(title="Figure 3: Scatterplot of Life Expectancy and Income by Country and Region")+
+  theme(legend.title = element_blank(), panel.background = element_blank(), panel.grid = element_blank())+
+  scale_y_continuous(labels=scales::comma, breaks = c(25000,50000,75000,100000))
+
+plotly::ggplotly(g1)
+```
+
+###Correlation between Population and Life Expectancy
+The visual between population and life expectancy did not indicate any strong correlation or any interesting results and therefore is not included.
+
+
+###Conclusion
+In conclusion, the exploratory data analysis of the dataset reveleaed that the quality of the data is very good. There are a few countries that are missing some data for many years, however they represent a very small proportion of the world population. The visualizations of the dataset revealed that Europe & Central Asia and America regions have the highest median GDP per capita while South Asia and Sub-Saharan Africa regions have the lowest GDP per capita in 2015. The data also showed that there is some correlation between population and income as the countries with lower income usually have higher GDP per capita than countries with very high population. There is also a strong correlation between the income and life expectancy. The data showed that countries with higher income have a life expectancy of 70 years or above.
+
+
+###References
+
+1. Gapminder Wikipedia: https://en.wikipedia.org/wiki/Gapminder_Foundation
+2. Hadley Wickham (2017). tidyverse: Easily Install and Load the 'Tidyverse'. R package version 1.2.1.
+  https://CRAN.R-project.org/package=tidyverse
+3. Hadley Wickham (2007). Reshaping Data with the reshape Package. Journal of Statistical Software, 21(12),
+  1-20. URL http://www.jstatsoft.org/v21/i12/.
+4. Maechler, M., Rousseeuw, P., Struyf, A., Hubert, M., Hornik, K.(2018).  cluster: Cluster Analysis Basics
+  and Extensions. R package version 2.0.7-1.
+5. Hadley Wickham (2018). scales: Scale Functions for Visualization. R package version 1.0.0. https://CRAN.R-project.org/package=scales
+6. Carson Sievert (2018) plotly for R. https://plotly-r.com
+7. Martijn Tennekes (2017). treemap: Treemap Visualization. R package version 2.4-2. https://CRAN.R-project.org/package=treemap
+8. Baptiste Auguie (2017). gridExtra: Miscellaneous Functions for "Grid" Graphics. R package version 2.3. https://CRAN.R-project.org/package=gridExtra
+9. Hao Zhu (2019). kableExtra: Construct Complex Table with 'kable' and Pipe Syntax. R package version 1.1.0. https://CRAN.R-project.org/package=kableExtra
+10. Peng, R. (2017). The Art of Data Science. Chapter 4: Exploratory Data Analysis https://bookdown.org/rdpeng/artofdatascience/ 
+
